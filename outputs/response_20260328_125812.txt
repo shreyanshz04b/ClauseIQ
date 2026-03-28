@@ -1,0 +1,25 @@
+QUERY:
+which page say that how is good legal notice
+
+RESPONSE:
+Based on the provided context, the page that discusses the essentials of a good legal notice is not explicitly stated. However, Page 11 is relevant as it mentions the issue of prior notice in the context of freezing bank accounts. According to the Supreme Court's decision in Teesta Atul Setalvad, there is no requirement for prior notice to the account holder before the seizure of their bank account under Section 102 of the CrPC.
+
+Here's a summary of the output:
+
+**Case Summary:** The case involves the freezing of bank accounts by investigating authorities, and the issue of prior notice to the account holder.
+
+**Facts:** The investigating authorities have frozen bank accounts of parties who are neither accused nor named in the complaint.
+
+**Entities:** The entities involved include the investigating authorities, the account holders, and the courts (High Court of Delhi and the Supreme Court).
+
+**Sections:** The relevant sections include Section 17 of the PMLA, Section 102 of the CrPC, Section 482 of the CrPC, and Article 226 of the Constitution.
+
+**Legal Reasoning:** The legal reasoning involves the interpretation of Section 102 of the CrPC and the requirement of prior notice to the account holder. The Supreme Court has held that there is no requirement for prior notice under Section 102.
+
+**Legal Strategy:** The legal strategy for the aggrieved parties may involve challenging the freezing order under Section 482 of the CrPC or Article 226 of the Constitution.
+
+**Next Step:** The next step for the aggrieved parties may be to file a petition under Section 482 of the CrPC or Article 226 of the Constitution to challenge the freezing order.
+
+**Judgment Prediction:** Based on the Supreme Court's decision in Teesta Atul Setalvad, it is likely that the court will hold that there is no requirement for prior notice to the account holder under Section 102 of the CrPC.
+
+**Confidence:** The confidence level in this prediction is moderate, as the court's decision will depend on the specific facts and circumstances of the case.

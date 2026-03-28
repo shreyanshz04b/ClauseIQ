@@ -1,0 +1,37 @@
+QUERY:
+what to do in english tell
+
+RESPONSE:
+**Case Summary:**
+The case involves the freezing of bank accounts by investigating authorities under the Prevention of Money Laundering Act (PMLA) and the Code of Criminal Procedure (CrPC). The High Court of Delhi has held that the essentials of Section 17 of the PMLA must be strictly complied with, and recourse cannot be taken to Section 102 of the CrPC. The court has also entertained petitions under Section 482 of the CrPC for de-freezing bank accounts.
+
+**Facts:**
+- Bank accounts of parties who are neither accused nor named in the complaint are being frozen by investigating authorities.
+- The High Court of Delhi has held that the essentials of Section 17 of the PMLA must be strictly complied with.
+- The court has entertained petitions under Section 482 of the CrPC for de-freezing bank accounts.
+
+**Entities:**
+- The High Court of Delhi
+- Investigating authorities
+- Parties whose bank accounts are being frozen
+
+**Sections:**
+- Section 17 of the PMLA (pertains to search and seizure)
+- Section 102 of the CrPC (pertains to the right of private defence of the body)
+- Section 482 of the CrPC (pertains to the inherent powers of the High Court)
+- Article 226 of the Constitution (pertains to the writ jurisdiction of the High Court)
+
+**Legal Reasoning:**
+The legal reasoning in this case involves the interpretation of Sections 17 and 102 of the CrPC, as well as Section 482 of the CrPC. The court has held that the essentials of Section 17 of the PMLA must be strictly complied with, and that recourse cannot be taken to Section 102 of the CrPC. The court has also entertained petitions under Section 482 of the CrPC for de-freezing bank accounts, invoking its inherent powers.
+
+**Legal Strategy:**
+The legal strategy in this case would involve challenging the freezing of bank accounts by investigating authorities under the PMLA and the CrPC. This could be done by filing a petition under Section 482 of the CrPC, invoking the inherent powers of the High Court. Alternatively, an aggrieved party may also assail the freezing order by taking recourse to Article 226 of the Constitution before the jurisdictional High Court.
+
+**Next Step:**
+The next step in this case would be to file a petition under Section 482 of the CrPC or Article 226 of the Constitution, challenging the freezing of bank accounts by investigating authorities. The petition would need to be supported by evidence and legal arguments, and would require the court to exercise its inherent powers or writ jurisdiction to de-freeze the bank accounts.
+
+**Judgment Prediction:**
+Based on the facts and legal reasoning in this case, it is likely that the court would rule in favor of the aggrieved party, ordering the de-freezing of the bank accounts. The court would likely hold that the investigating authorities had not complied with the essentials of Section 17 of the PMLA, and that the freezing of bank accounts was therefore unlawful.
+
+**Confidence:**
+The confidence level in this prediction is high, based on the legal reasoning and the facts of the case. The court has already entertained petitions under Section 482 of the CrPC for de-freezing bank accounts, and has held that the essentials of Section 17 of the PMLA must be strictly complied with. Therefore, it is likely that the court would rule in favor of the aggrieved party in this case. Confidence level: 80%

@@ -7,45 +7,42 @@ import re
 
 def clean_text(text):
     text = re.sub(r'\s+', ' ', text)
+    text = re.sub(r'Page \d+', '', text, flags=re.I)
     return text.strip()
 
 
 def is_junk_page(text):
     t = text.lower()
 
+    if len(t) < 80:
+        return True
+
     junk_patterns = [
-        "email", "e:", "tel", "phone",
-        "address", "@", "+91"
+        "email", "@", "phone", "tel",
+        "address", "+91"
     ]
 
     score = sum(1 for j in junk_patterns if j in t)
 
-    if score >= 4:
-        return True
-
-    if len(t) < 80:
-        return True
-
-    return False
+    return score >= 4
 
 
 def preprocess_image(img):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
     gray = cv2.fastNlMeansDenoising(gray, None, 30, 7, 21)
 
     thresh = cv2.adaptiveThreshold(
         gray, 255,
-        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.ADAPTIVE_THRESH_MEAN_C,
         cv2.THRESH_BINARY,
-        31, 2
+        31, 3
     )
 
     return thresh
 
 
 def ocr_page(page):
-    mat = fitz.Matrix(2, 2)
+    mat = fitz.Matrix(2.5, 2.5)
     pix = page.get_pixmap(matrix=mat)
 
     img = np.frombuffer(pix.samples, dtype=np.uint8)
@@ -64,6 +61,23 @@ def ocr_page(page):
     return text
 
 
+def extract_blocks(page):
+    blocks = page.get_text("blocks")
+
+    blocks = sorted(blocks, key=lambda b: (b[1], b[0]))
+
+    lines = []
+    for b in blocks:
+        txt = b[4].strip()
+
+        if len(txt) < 5:
+            continue
+
+        lines.append(txt)
+
+    return "\n".join(lines)
+
+
 def extract_text_with_pages(file_path):
     results = []
 
@@ -71,9 +85,9 @@ def extract_text_with_pages(file_path):
         doc = fitz.open(file_path)
 
         for i, page in enumerate(doc):
-            text = page.get_text("text")
+            text = extract_blocks(page)
 
-            if not text or len(text.strip()) < 100:
+            if not text or len(text.strip()) < 120:
                 text = ocr_page(page)
 
             text = clean_text(text)

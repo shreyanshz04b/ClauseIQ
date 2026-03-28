@@ -1,14 +1,21 @@
 import re
 import json
 import math
+from collections import defaultdict
 from app.db import get_conn
 from rank_bm25 import BM25Okapi
 
 
+LEGAL_TERMS = [
+    "ipc", "crpc", "section", "court", "judge",
+    "police", "offence", "complaint", "evidence",
+    "investigation", "accused", "fir", "petition",
+    "order", "judgment", "bns", "act"
+]
+
+
 def keywords(text):
-    text = text.lower()
-    tokens = re.findall(r'\b\w+\b', text)
-    return list(set([t for t in tokens if len(t) > 2]))
+    return re.findall(r'\b[a-z0-9]{3,}\b', text.lower())
 
 
 def extract_laws(text):
@@ -18,14 +25,13 @@ def extract_laws(text):
     patterns = [
         r'ipc\s*\d+',
         r'crpc\s*\d+',
+        r'bns\s*\d+',
         r'section\s*\d+',
-        r'article\s*\d+',
-        r'rbi'
+        r'article\s*\d+'
     ]
 
     for p in patterns:
-        for m in re.findall(p, text):
-            laws.add(m.upper())
+        laws.update([m.upper() for m in re.findall(p, text)])
 
     if "fraud" in text:
         laws.add("IPC 420")
@@ -33,21 +39,76 @@ def extract_laws(text):
     return list(laws)
 
 
-def chunk(text, size=400):
-    sentences = re.split(r'(?<=[.!?]) +', text)
-    chunks, current = [], ""
+def detect_intent(query):
+    q = query.lower()
 
-    for s in sentences:
-        if len(current) + len(s) < size:
-            current += " " + s
+    if any(x in q for x in ["summary", "summarize"]):
+        return "summary"
+    if any(x in q for x in ["section", "law", "ipc", "crpc"]):
+        return "law_lookup"
+    if any(x in q for x in ["what to do", "next step", "action"]):
+        return "strategy"
+    if any(x in q for x in ["case", "accused", "fir"]):
+        return "case"
+
+    return "general"
+
+
+def legal_density(text):
+    return sum(1 for k in LEGAL_TERMS if k in text.lower())
+
+
+def entity_score(text):
+    t = text.lower()
+    score = 0
+
+    if "fir" in t:
+        score += 3
+    if "accused" in t:
+        score += 3
+    if "section" in t:
+        score += 2
+    if "court" in t:
+        score += 1
+
+    return score
+
+
+def smart_chunk(text, size=280):
+    sents = re.split(r'(?<=[.!?]) +', text)
+    chunks, cur = [], ""
+
+    for s in sents:
+        if len(cur) + len(s) < size:
+            cur += " " + s
         else:
-            chunks.append(current.strip())
-            current = s
+            if legal_density(cur) > 1:
+                chunks.append(cur.strip())
+            cur = s
 
-    if current:
-        chunks.append(current)
+    if cur and legal_density(cur) > 1:
+        chunks.append(cur.strip())
 
     return chunks
+
+
+def expand_query(query):
+    q = query.lower()
+
+    mapping = {
+        "fraud": ["ipc 420", "cheating"],
+        "police": ["fir", "complaint"],
+        "court": ["judge", "hearing"],
+        "case": ["evidence", "offence"],
+        "bank": ["freeze", "rbi"]
+    }
+
+    extra = []
+    for k, v in mapping.items():
+        if k in q:
+            extra += v
+
+    return q + " " + " ".join(extra)
 
 
 def add_doc(pages, source="uploaded"):
@@ -57,21 +118,21 @@ def add_doc(pages, source="uploaded"):
     total = 0
 
     for p in pages:
-        page_no = p["page"]
-        text = p["text"]
+        page = p["page"]
+        chunks = smart_chunk(p["text"])
 
-        parts = chunk(text)
-
-        for c in parts:
+        for c in chunks:
             cur.execute(
                 "INSERT INTO docs(content,keywords,page,source) VALUES(?,?,?,?)",
                 (
                     c,
                     json.dumps({
                         "kw": keywords(c),
-                        "laws": extract_laws(c)
+                        "laws": extract_laws(c),
+                        "density": legal_density(c),
+                        "entity": entity_score(c)
                     }),
-                    page_no,
+                    page,
                     source
                 )
             )
@@ -83,59 +144,104 @@ def add_doc(pages, source="uploaded"):
 
 
 def vectorize(text):
-    vec = {}
+    v = defaultdict(int)
     for w in keywords(text):
-        vec[w] = vec.get(w, 0) + 1
-    return vec
+        v[w] += 1
+    return v
 
 
-def cosine(v1, v2):
-    dot = sum(v1.get(k, 0) * v2.get(k, 0) for k in v1)
-    mag1 = math.sqrt(sum(x * x for x in v1.values()))
-    mag2 = math.sqrt(sum(x * x for x in v2.values()))
-
-    if mag1 * mag2 == 0:
-        return 0
-
-    return dot / (mag1 * mag2)
+def cosine(a, b):
+    dot = sum(a[k] * b.get(k, 0) for k in a)
+    ma = math.sqrt(sum(x * x for x in a.values()))
+    mb = math.sqrt(sum(x * x for x in b.values()))
+    return dot / (ma * mb) if ma and mb else 0
 
 
 def retrieve(query):
+    intent = detect_intent(query)
+    query = expand_query(query)
+
     conn = get_conn()
     cur = conn.cursor()
-
-    cur.execute("SELECT content,page FROM docs")
+    cur.execute("SELECT content,page,keywords FROM docs")
     rows = cur.fetchall()
     conn.close()
 
-    docs = [{"text": r[0], "page": r[1]} for r in rows]
+    docs = []
+    for r in rows:
+        meta = json.loads(r[2]) if r[2] else {}
+        docs.append({
+            "text": r[0],
+            "page": r[1],
+            "meta": meta
+        })
 
     if not docs:
         return []
 
-    texts = [d["text"] for d in docs]
-
-    tokenized = [keywords(t) for t in texts]
+    tokenized = [keywords(d["text"]) for d in docs]
     bm25 = BM25Okapi(tokenized)
-    bm25_scores = bm25.get_scores(keywords(query))
+    bm_scores = bm25.get_scores(keywords(query))
 
     q_vec = vectorize(query)
 
     results = []
 
     for i, d in enumerate(docs):
-        sem = cosine(q_vec, vectorize(d["text"]))
-        score = 0.65 * bm25_scores[i] + 0.35 * sem
+        text = d["text"]
+        meta = d["meta"]
+
+        sem = cosine(q_vec, vectorize(text))
+        bm = bm_scores[i]
+
+        density = meta.get("density", 0)
+        entity = meta.get("entity", 0)
+        law_bonus = len(meta.get("laws", []))
+
+        score = (
+            0.45 * bm +
+            0.25 * sem +
+            0.15 * density +
+            0.10 * entity +
+            0.05 * law_bonus
+        )
+
+        if intent == "law_lookup":
+            score += law_bonus * 2
+
+        if intent == "case":
+            score += entity * 2
+
+        if density < 1:
+            continue
 
         results.append({
             "score": score,
-            "text": d["text"],
+            "text": text,
             "page": d["page"]
         })
 
     results.sort(key=lambda x: x["score"], reverse=True)
 
-    return results[:8]
+    return diversify(results[:20])
+
+
+def diversify(results):
+    final = []
+    seen = set()
+
+    for r in results:
+        key = r["text"][:140]
+        if key in seen:
+            continue
+
+        seen.add(key)
+        final.append(r)
+
+        if len(final) == 10:
+            break
+
+    return final
 
 
 def rerank(query, contexts):
@@ -146,14 +252,20 @@ def rerank(query, contexts):
         score = c["score"]
         text = c["text"].lower()
 
-        if any(x in text for x in ["ipc", "crpc", "section", "court", "law"]):
+        if "section" in text or "ipc" in text:
+            score += 2
+
+        if "fir" in text or "accused" in text:
+            score += 2
+
+        if "evidence" in text:
+            score += 1
+
+        if "judgment" in text:
             score += 1.5
 
-        if any(x in q for x in ["case", "legal", "crime", "court"]):
+        if any(x in q for x in ["crime", "case"]):
             score += 0.5
-
-        if any(x in text for x in ["evidence", "complaint", "police", "fir"]):
-            score += 0.7
 
         ranked.append({
             "score": score,
@@ -162,27 +274,22 @@ def rerank(query, contexts):
         })
 
     ranked.sort(key=lambda x: x["score"], reverse=True)
-
-    return ranked[:5]
+    return ranked[:6]
 
 
 def confidence_score(contexts, answer):
-    if not contexts:
-        return 0.2
-
     joined = " ".join([c["text"] for c in contexts]).lower()
     ans = answer.lower()
 
     overlap = len(set(ans.split()) & set(joined.split()))
 
-    if overlap > 50:
+    if overlap > 80:
         return 0.9
-    elif overlap > 30:
-        return 0.8
-    elif overlap > 15:
-        return 0.65
-    else:
-        return 0.45
+    if overlap > 50:
+        return 0.75
+    if overlap > 30:
+        return 0.6
+    return 0.4
 
 
 def highlight_citations(answer, contexts):
@@ -190,13 +297,13 @@ def highlight_citations(answer, contexts):
     ans_words = set(answer.lower().split())
 
     for c in contexts:
-        lines = re.split(r'[.?!]', c["text"])
+        for line in re.split(r'[.?!]', c["text"]):
+            if len(line) < 60:
+                continue
 
-        for line in lines:
-            words = set(line.lower().split())
-            overlap = len(ans_words & words)
+            overlap = len(ans_words & set(line.lower().split()))
 
-            if overlap > 5 and len(line) > 50:
+            if overlap > 6:
                 citations.append({
                     "text": line.strip(),
                     "page": c["page"]

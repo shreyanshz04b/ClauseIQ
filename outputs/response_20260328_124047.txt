@@ -1,0 +1,31 @@
+QUERY:
+isss document mein kya kehn acha rsha hai
+
+RESPONSE:
+Summary:
+The document discusses the power of investigating authorities to freeze bank accounts and the relevant laws and court decisions. 
+The essentials of Section 17 of the PMLA must be strictly complied with.
+
+Facts:
+- The High Court of Delhi held that the essentials of Section 17 of the PMLA must be strictly complied with, and recourse cannot be taken to Section 102 of the CrPC (Page 7)
+- The High Court of Bombay was not convinced of the justifications given for freezing a bank account (Page 7)
+- The Court relied on the decision in Neogy, which stated that the bank account of the accused and their relatives can fall within the scope of Section 102 of the CrPC (Page 7)
+- An aggrieved party may assail the freezing order by taking recourse to Section 482 of the CrPC and Article 226 of the Constitution (Page 11)
+
+Entities:
+Accused: ['nor a named party in the complaint are frozen by the investigating authorities', 'in any crime can be freezed ', 'as well as his relatives can fall within the scope of Section ', 'in the crime approached the High Court of Kerala under Article ']
+FIR: ['Not found']
+Court: ['Court of Delhi that the essentials of Section ', 'Court of Bombay as to ', 'Court of Kerala under Article ']
+Dates: ['Not found']
+
+Sections:
+['ARTICLE 226', 'SECTION 482', 'SECTION 102', 'SECTION 17']
+
+Meaning:
+The power to freeze bank accounts is governed by laws such as Section 102 of the CrPC and Section 17 of the PMLA, and courts have made decisions on the scope of these powers.
+
+Next Step:
+Not specified
+
+Confidence:
+Medium
