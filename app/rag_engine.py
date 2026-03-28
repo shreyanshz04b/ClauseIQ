@@ -5,38 +5,10 @@ from app.db import get_conn
 from rank_bm25 import BM25Okapi
 
 
-def normalize_query(q):
-    q = q.lower()
-
-    mapping = {
-        "banka": "bank",
-        "unfreze": "unfreeze",
-        "account band": "bank account frozen",
-        "paise nahi nikal": "cannot withdraw money",
-        "kya karu": "what should i do",
-        "kaise": "how"
-    }
-
-    for k, v in mapping.items():
-        q = q.replace(k, v)
-
-    return q
-
-
-def expand_query(q):
-    extra = []
-
-    if "unfreeze" in q:
-        extra += ["unblock account", "kyc update", "bank freeze reason"]
-
-    if "bank" in q:
-        extra += ["rbi rules", "account restriction", "kyc compliance"]
-
-    return q + " " + " ".join(extra)
-
-
 def keywords(text):
-    return list(set(re.findall(r'\b[a-z]{3,}\b', text.lower())))
+    text = text.lower()
+    tokens = re.findall(r'\b\w+\b', text)
+    return list(set([t for t in tokens if len(t) > 2]))
 
 
 def extract_laws(text):
@@ -47,6 +19,7 @@ def extract_laws(text):
         r'ipc\s*\d+',
         r'crpc\s*\d+',
         r'section\s*\d+',
+        r'article\s*\d+',
         r'rbi'
     ]
 
@@ -60,7 +33,7 @@ def extract_laws(text):
     return list(laws)
 
 
-def chunk(text, size=300):
+def chunk(text, size=400):
     sentences = re.split(r'(?<=[.!?]) +', text)
     chunks, current = [], ""
 
@@ -142,9 +115,9 @@ def retrieve(query):
 
     texts = [d["text"] for d in docs]
 
-    tokenized = [t.split() for t in texts]
+    tokenized = [keywords(t) for t in texts]
     bm25 = BM25Okapi(tokenized)
-    bm25_scores = bm25.get_scores(query.split())
+    bm25_scores = bm25.get_scores(keywords(query))
 
     q_vec = vectorize(query)
 
@@ -152,30 +125,35 @@ def retrieve(query):
 
     for i, d in enumerate(docs):
         sem = cosine(q_vec, vectorize(d["text"]))
-        score = 0.6 * bm25_scores[i] + 0.4 * sem
+        score = 0.65 * bm25_scores[i] + 0.35 * sem
 
-        if score > 0.2:
-            results.append({
-                "score": score,
-                "text": d["text"],
-                "page": d["page"]
-            })
+        results.append({
+            "score": score,
+            "text": d["text"],
+            "page": d["page"]
+        })
 
     results.sort(key=lambda x: x["score"], reverse=True)
-    return results[:5]
+
+    return results[:8]
 
 
 def rerank(query, contexts):
+    q = query.lower()
     ranked = []
 
     for c in contexts:
         score = c["score"]
+        text = c["text"].lower()
 
-        if "freeze" in query and "freeze" in c["text"].lower():
-            score += 1
+        if any(x in text for x in ["ipc", "crpc", "section", "court", "law"]):
+            score += 1.5
 
-        if "kyc" in c["text"].lower():
+        if any(x in q for x in ["case", "legal", "crime", "court"]):
             score += 0.5
+
+        if any(x in text for x in ["evidence", "complaint", "police", "fir"]):
+            score += 0.7
 
         ranked.append({
             "score": score,
@@ -184,31 +162,31 @@ def rerank(query, contexts):
         })
 
     ranked.sort(key=lambda x: x["score"], reverse=True)
-    return ranked
+
+    return ranked[:5]
 
 
 def confidence_score(contexts, answer):
     if not contexts:
         return 0.2
 
-    joined = " ".join(contexts).lower()
+    joined = " ".join([c["text"] for c in contexts]).lower()
     ans = answer.lower()
 
     overlap = len(set(ans.split()) & set(joined.split()))
 
-    if overlap > 40:
+    if overlap > 50:
         return 0.9
-    elif overlap > 20:
-        return 0.75
-    elif overlap > 10:
-        return 0.6
+    elif overlap > 30:
+        return 0.8
+    elif overlap > 15:
+        return 0.65
     else:
-        return 0.4
+        return 0.45
 
 
 def highlight_citations(answer, contexts):
     citations = []
-
     ans_words = set(answer.lower().split())
 
     for c in contexts:
@@ -218,7 +196,7 @@ def highlight_citations(answer, contexts):
             words = set(line.lower().split())
             overlap = len(ans_words & words)
 
-            if overlap > 6 and len(line) > 40:
+            if overlap > 5 and len(line) > 50:
                 citations.append({
                     "text": line.strip(),
                     "page": c["page"]

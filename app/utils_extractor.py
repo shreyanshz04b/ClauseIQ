@@ -11,56 +11,69 @@ def clean_text(text):
 
 
 def is_junk_page(text):
-    text = text.lower()
+    t = text.lower()
 
     junk_patterns = [
-        "defence colony",
-        "psl chambers",
-        "email",
-        "e:",
-        "t:",
-        "tel",
-        "mumbai",
-        "bengaluru",
-        "chandigarh",
-        "address",
-        "india –",
-        "@",
-        "+91"
+        "email", "e:", "tel", "phone",
+        "address", "@", "+91"
     ]
 
-    score = sum(1 for j in junk_patterns if j in text)
+    score = sum(1 for j in junk_patterns if j in t)
 
-    if score >= 3:
+    if score >= 4:
         return True
 
-    if len(text.strip()) < 120:
+    if len(t) < 80:
         return True
 
     return False
 
 
+def preprocess_image(img):
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    gray = cv2.fastNlMeansDenoising(gray, None, 30, 7, 21)
+
+    thresh = cv2.adaptiveThreshold(
+        gray, 255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY,
+        31, 2
+    )
+
+    return thresh
+
+
 def ocr_page(page):
-    pix = page.get_pixmap()
+    mat = fitz.Matrix(2, 2)
+    pix = page.get_pixmap(matrix=mat)
+
     img = np.frombuffer(pix.samples, dtype=np.uint8)
     img = img.reshape(pix.height, pix.width, pix.n)
 
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)[1]
+    if pix.n == 4:
+        img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
 
-    return pytesseract.image_to_string(thresh, config="--psm 6")
+    processed = preprocess_image(img)
+
+    text = pytesseract.image_to_string(
+        processed,
+        config="--oem 3 --psm 6 -l eng+hin"
+    )
+
+    return text
 
 
 def extract_text_with_pages(file_path):
     results = []
 
-    if file_path.endswith(".pdf"):
+    if file_path.lower().endswith(".pdf"):
         doc = fitz.open(file_path)
 
         for i, page in enumerate(doc):
-            text = page.get_text()
+            text = page.get_text("text")
 
-            if not text or len(text.strip()) < 50:
+            if not text or len(text.strip()) < 100:
                 text = ocr_page(page)
 
             text = clean_text(text)
@@ -76,13 +89,19 @@ def extract_text_with_pages(file_path):
                 "text": text
             })
 
-    elif file_path.endswith((".png", ".jpg", ".jpeg")):
+    elif file_path.lower().endswith((".png", ".jpg", ".jpeg")):
         img = cv2.imread(file_path)
 
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)[1]
+        if img is None:
+            return []
 
-        text = pytesseract.image_to_string(thresh, config="--psm 6")
+        processed = preprocess_image(img)
+
+        text = pytesseract.image_to_string(
+            processed,
+            config="--oem 3 --psm 6 -l eng+hin"
+        )
+
         text = clean_text(text)
 
         if text and not is_junk_page(text):
@@ -91,14 +110,17 @@ def extract_text_with_pages(file_path):
                 "text": text
             })
 
-    elif file_path.endswith(".txt"):
-        with open(file_path, encoding="utf-8", errors="ignore") as f:
-            text = clean_text(f.read())
+    elif file_path.lower().endswith(".txt"):
+        try:
+            with open(file_path, encoding="utf-8", errors="ignore") as f:
+                text = clean_text(f.read())
 
-            if text and not is_junk_page(text):
-                results.append({
-                    "page": 1,
-                    "text": text
-                })
+                if text and not is_junk_page(text):
+                    results.append({
+                        "page": 1,
+                        "text": text
+                    })
+        except:
+            return []
 
     return results
