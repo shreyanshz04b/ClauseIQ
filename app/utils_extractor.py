@@ -1,3 +1,4 @@
+# Contribution: Ansh pal singh
 import fitz
 import pytesseract
 import numpy as np
